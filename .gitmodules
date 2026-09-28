@@ -4,6 +4,6 @@
 
 [submodule "buildroot"]
 	path = buildroot
-	url = https://github.com/buildroot/buildroot/tree/43de288bd1e11149068fe52595f56f33523e0159
+	url = https://github.com/buildroot/buildroot.git
  
 

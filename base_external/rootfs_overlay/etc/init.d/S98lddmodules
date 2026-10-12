@@ -1,24 +1,42 @@
 #!/bin/sh
 
+MODULE_DIR="/lib/modules/$(uname -r)/updates"
+
 case "$1" in
   start)
-    echo "Loading ldd3 modules"
+    echo "Loading ldd3 modules dynamically..."
+    cd "$MODULE_DIR" || exit 1
     
-    # Navigate to where Buildroot installs your out-of-tree kernel modules
-    cd /lib/modules/*/updates/
+    # 1. Use modprobe to natively resolve kernel boundaries and load modules
+    modprobe scull || echo "Scull modprobe failed"
+    modprobe faulty || echo "Faulty modprobe failed"
+    modprobe hello || echo "Hello modprobe failed"
     
-    /usr/bin/scull_load
-    /usr/bin/faulty_load faulty
-    modprobe hello
+    # 2. Re-create the mandatory assignment device node links manually
+    # This guarantees the devices live in /dev/ even if proc was delayed
+    major_faulty=$(awk '$2=="faulty" {print $1}' /proc/devices)
+    if [ ! -z "$major_faulty" ]; then
+        rm -f /dev/faulty
+        mknod /dev/faulty c "$major_faulty" 0
+        chmod 666 /dev/faulty
+    fi
+
+    major_scull=$(awk '$2=="scull" {print $1}' /proc/devices)
+    if [ ! -z "$major_scull" ]; then
+        rm -f /dev/scull0
+        mknod /dev/scull0 c "$major_scull" 0
+        chmod 666 /dev/scull0
+    fi
     ;;
+    
   stop)
-    echo "Unloading ldd3 modules"
-    cd /lib/modules/*/updates/
-    
-    rmmod hello
-    /usr/bin/faulty_unload faulty
-    /usr/bin/scull_unload
+    echo "Unloading ldd3 modules cleanly..."
+    rmmod hello 2>/dev/null
+    rmmod faulty 2>/dev/null
+    rmmod scull 2>/dev/null
+    rm -f /dev/faulty /dev/scull0
     ;;
+    
   *)
     echo "Usage: $0 {start|stop}"
     exit 1
